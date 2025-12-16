@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CreBee - 短视频矩阵运营助手 | 跨平台多账号统一分发管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['PingFang SC', 'SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    },
+                    colors: {
+                        crebee: {
+                            bg: '#F5F5F7',
+                            primary: '#FF6B00',
+                            dark: '#1D1D1F',
+                            text: '#1D1D1F',
+                            subtext: '#86868B'
+                        }
+                    },
+                    backgroundImage: {
+                        'gradient-orange': 'linear-gradient(135deg, #FF6B00 0%, #FF8800 100%)',
+                        'mesh': 'radial-gradient(at 0% 0%, rgba(255, 107, 0, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(255, 107, 0, 0.1) 0px, transparent 50%)'
+                    },
+                    animation: {
+                        'float': 'float 8s ease-in-out infinite',
+                        'float-delayed': 'float 8s ease-in-out 4s infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'scale-in': 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+                        'glass-hover': '0 8px 32px 0 rgba(255, 107, 0, 0.15)',
+                        'card': '0 2px 10px rgba(0, 0, 0, 0.02)',
+                        'card-hover': '0 20px 40px rgba(0, 0, 0, 0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background-color: #F5F5F7; 
+            color: #1D1D1F; 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+        }
+        
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #FF6B00 0%, #FF9E00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .icon-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .hover-card {
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .hover-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .blur-spot {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: -1;
+        }
+
+        /* 模态框动画 */
+        .modal-backdrop {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-backdrop.active .modal-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="selection:bg-orange-100 selection:text-orange-600">
+
+    <!-- 背景装饰 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div class="blur-spot bg-orange-200/40 w-[600px] h-[600px] -top-[10%] -right-[10%] animate-float"></div>
+        <div class="blur-spot bg-blue-100/40 w-[500px] h-[500px] bottom-[10%] -left-[10%] animate-float-delayed"></div>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="glass-nav fixed w-full z-50 top-0 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="flex justify-between items-center h-[72px]">
+                <div class="flex items-center gap-3 shrink-0 cursor-pointer">
+                    <img src="白色logo.png" alt="CreBee Logo" class="h-8 w-auto">
+                </div>
+
+                <div class="hidden md:flex items-center space-x-10 text-[14px] font-medium text-crebee-text/80 tracking-wide">
+                    <a href="#" class="hover:text-crebee-primary transition-colors relative group py-2">首页
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-crebee-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                    </a>
+                    <a href="#" class="hover:text-crebee-primary transition-colors relative group py-2">产品
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-crebee-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                    </a>
+                    <a href="#" onclick="openDownloadModal()" class="hover:text-crebee-primary transition-colors relative group py-2">下载
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-crebee-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                    </a>
+                    <a href="#" class="hover:text-crebee-primary transition-colors relative group py-2">演示
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-crebee-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                    </a>
+                    <a href="#" class="hover:text-crebee-primary transition-colors relative group py-2">价格
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-crebee-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                    </a>
+                    <a href="#" class="hover:text-crebee-primary transition-colors relative group py-2">API
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-crebee-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                    </a>
+                </div>
+
+                <div class="flex items-center gap-6">
+                    <a href="#" class="hidden md:flex items-center gap-2 text-sm font-medium text-crebee-subtext hover:text-crebee-primary transition-colors">
+                        <i class="fa-regular fa-comment-dots"></i>
+                        <span>客服咨询</span>
+                    </a>
+                    <button onclick="openDownloadModal()" class="bg-crebee-text text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-black transition-all shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span>免费下载</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="pt-32 pb-24 relative">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+                
+                <div class="lg:col-span-5 flex flex-col gap-8">
+                    
+                    <!-- 版本通知 (优化：更紧凑精致) -->
+                    <div class="animate-fade-in-up">
+                        <a href="#section-formats" class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/60 backdrop-blur-md border border-orange-100/50 shadow-sm hover:bg-white hover:shadow-md hover:border-orange-200 transition-all duration-300 group cursor-pointer w-fit">
+                            <span class="flex h-2.5 w-2.5 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+                </span>
+                            <span class="text-xs font-bold text-orange-600 tracking-wide">v1.2.2</span>
+                            <span class="w-px h-3.5 bg-gray-300/50"></span>
+                            <span class="text-[13px] font-medium text-gray-600 group-hover:text-gray-900 transition-colors">新增企鹅号、网易号发布</span>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-gray-400 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all"></i>
+                        </a>
+                    </div>
+
+                    <!-- 标题与描述 (优化：调整间距) -->
+                    <div class="space-y-5">
+                        <h1 class="text-5xl lg:text-[3.5rem] font-[800] tracking-tight leading-[1.15] text-crebee-text">
+                            新媒体矩阵运营<br>
+                            <span class="text-gradient">如此高质高效</span>
+            </h1>
+                        <p class="text-[17px] leading-relaxed text-gray-600 font-normal max-w-md">
+                支持视频、图集、文章一键分发至 12 大主流平台，全平台账号数据自动汇总，评论、私信、弹幕集中管理。                
+            </p>
+                    </div>
+
+                    <!-- 操作区域 (优化：布局更清晰) -->
+                    <div class="space-y-8">
+                        <!-- 下载区：整合系统图标 -->
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                            <button onclick="openDownloadModal()" class="group relative px-8 py-3.5 bg-gradient-orange rounded-xl text-white shadow-[0_8px_20px_-8px_rgba(255,107,0,0.5)] hover:shadow-[0_15px_30px_-10px_rgba(255,107,0,0.6)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden w-fit">
+                                <div class="relative z-10 flex items-center gap-2.5">
+                                    <i class="fa-solid fa-cloud-arrow-down text-xl"></i>
+                                    <div class="text-left leading-none">
+                                        <div class="text-[15px] font-bold">立即免费下载</div>
+                                    </div>
+                                </div>
+                                <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                            </button>
+                            
+                            <!-- 系统支持改为横向排列，更简洁 -->
+                            <div class="flex items-center gap-4 px-4 py-2 rounded-lg bg-white/40 border border-white/50 backdrop-blur-sm" onclick="openDownloadModal()" style="cursor: pointer;">
+                                <div class="flex items-center gap-3 text-lg text-gray-400">
+                                    <i class="fa-brands fa-apple hover:text-gray-800 transition-colors" title="macOS"></i>
+                                    <i class="fa-brands fa-windows hover:text-blue-600 transition-colors" title="Windows"></i>
+                                    <i class="fa-brands fa-linux hover:text-yellow-600 transition-colors" title="Linux"></i>
+                                </div>
+                                <div class="h-4 w-px bg-gray-200"></div>
+                            </div>
+                        </div>
+
+                        <!-- 平台区域 (优化：更精致小巧的图标网格) -->
+                        <div>
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">支持 12+ 主流平台</span>
+                                <div class="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent"></div>
+                            </div>
+                            
+                            <div class="grid grid-cols-6 gap-3 max-w-[420px]">
+                                <!-- 图标缩小尺寸 w-10 h-10，更精致 -->
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-gray-800 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="抖音">
+                                    <i class="fab fa-tiktok group-hover:text-black transition-colors"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-red-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="小红书">
+                                    <i class="fa-solid fa-heart group-hover:scale-110 transition-transform"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-orange-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="快手">
+                                    <i class="fa-solid fa-bolt group-hover:rotate-12 transition-transform"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-green-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="视频号">
+                                    <i class="fab fa-weixin group-hover:text-green-600 transition-colors"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-pink-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="B站">
+                                    <i class="fa-solid fa-tv group-hover:scale-110 transition-transform"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-blue-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="知乎">
+                                    <i class="fa-solid fa-book group-hover:text-blue-600 transition-colors"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-red-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="微博">
+                                    <i class="fab fa-weibo group-hover:text-red-600 transition-colors"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-blue-600 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="百家号">
+                                    <i class="fa-solid fa-paw group-hover:rotate-12 transition-transform"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-red-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="头条号">
+                                    <i class="fa-solid fa-newspaper group-hover:scale-110 transition-transform"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-green-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="360号">
+                                    <i class="fa-solid fa-circle text-base group-hover:scale-110 transition-transform"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-yellow-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="企鹅号">
+                                    <i class="fa-solid fa-user group-hover:text-yellow-600 transition-colors"></i>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-lg text-red-500 shadow-sm hover:shadow-md hover:scale-110 hover:-translate-y-1 transition-all duration-300 cursor-pointer group" title="网易号">
+                                    <i class="fa-solid fa-cloud group-hover:scale-110 transition-transform"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 relative">
+                    <div class="relative z-10 p-3 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-glass animate-float">
+                        <div class="relative rounded-xl overflow-hidden bg-black aspect-video shadow-2xl group cursor-pointer">
+                            <video src="intro_v2.mp4" class="w-full h-full object-cover" controls poster="https://placehold.co/1200x675/1a1a1a/FFF?text=CreBee+Dashboard"></video>
+
+                            <div class="absolute top-4 left-4 flex gap-2 z-20">
+                                <div class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]"></div>
+                                <div class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]"></div>
+                                <div class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="absolute -right-12 -bottom-12 w-64 h-64 bg-gradient-to-br from-orange-300 to-pink-300 rounded-full blur-[80px] opacity-40 -z-10 animate-pulse-slow"></div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- 功能特性导航 Dock 栏 -->
+    <section id="feature-nav" class="sticky top-[72px] z-40 bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="flex overflow-x-auto no-scrollbar py-3 gap-2 md:gap-4 md:justify-center">
+                <!-- 功能卡片 -->
+                <button onclick="scrollToSection('feature-accounts')" id="nav-accounts" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">账号管理</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-publish')" id="nav-publish" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">内容发布</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-interact')" id="nav-interact" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-comments"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">互动管理</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-analytics')" id="nav-analytics" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">数据洞察</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-records')" id="nav-records" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-yellow-50 text-yellow-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">发布记录</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-trends')" id="nav-trends" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">实时热榜</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-download')" id="nav-download" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-download"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">视频下载</span>
+                </button>
+
+                <button onclick="scrollToSection('feature-cloud')" id="nav-cloud" class="feature-nav-item flex-shrink-0 flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md border border-transparent hover:border-orange-100 group">
+                    <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-cloud-upload"></i>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-900">网盘发布</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 功能详细介绍区块 -->
+    <div class="bg-white">
+        
+        <!-- 账号管理 -->
+        <section id="feature-accounts" class="py-24 border-b border-gray-50 scroll-mt-[140px]">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-users-gear"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">平台账号集中管理</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">告别繁琐的账号切换，一站式管理所有平台账号。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>账号集中管理：</strong>集中管理所有平台账号，支持同时打开多个账号后台，操作互不干扰。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>自定义账号标签：</strong>自定义账号标签进行分组（如"美妆组"、"剧情号"），避免账号管理混乱。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>账号实时监控：</strong>实时监控账号登录状态，Cookie 失效或异常情况及时预警，保障运营连续性。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-white rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-bl from-green-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                账号管理界面展示
+                            </div>
+                        </div>
+                            </div>
+                            </div>
+                            </div>
+        </section>
+
+        <!-- 内容发布 -->
+        <section id="feature-publish" class="py-24 border-b border-gray-50 scroll-mt-[140px] bg-gray-50/50">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row-reverse items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            </div>
+                        <h2 class="text-4xl font-bold text-gray-900">多内容类型发布</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">一次编辑，全网分发，让内容价值最大化。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>多内容类型发布：</strong>支持视频、图文、文章多种内容类型的一键发布，满足不同创作需求。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>多平台一键发布：</strong>发布到抖音、B站、快手、小红书等 11 大主流平台，省去重复上传的繁琐。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>内容智能适配：</strong>自动调整各平台发布格式（如标题长度、标签规则），进行内容适配，确保展示效果最佳。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>内容定时发布：</strong>支持定时发布功能，精准把控发布时机，让作品在流量高峰期上线。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                            </div>
+                            </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-gray-50 rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden group">
+                            <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                内容发布界面展示
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 互动管理 -->
+        <section id="feature-interact" class="py-24 border-b border-gray-50 scroll-mt-[140px]">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">评论、弹幕和私信统一管理</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">不错过任何一个粉丝声音，建立更紧密的连接。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>多渠道聚合：</strong>统一聚合各平台评论、弹幕和私信，在一个界面即可查看所有互动信息。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>高效回复：</strong>支持批量回复与管理消息，内置快捷回复模板，高效处理粉丝互动。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>即时通知：</strong>关键消息即时通知，不错过任何重要反馈或商机。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-white rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden group">
+                            <div class="absolute inset-0 bg-gradient-to-bl from-blue-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                互动管理界面展示
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 数据洞察 -->
+        <section id="feature-analytics" class="py-24 border-b border-gray-50 scroll-mt-[140px] bg-gray-50/50">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row-reverse items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-chart-pie"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">全平台数据自动汇总</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">用数据驱动运营决策，让每一次增长都有迹可循。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>数据实时更新：</strong>告别手动统计，播放量、点赞、粉丝等数据实时更新，第一时间洞察账号表现。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>多维度对比：</strong>支持跨平台数据横向对比，快速识别优质渠道，复盘优化分发策略。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>数据一键导出：</strong>支持一键导出账号详细数据，方便进行深度数据分析和团队汇报。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-gray-50 rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-tr from-purple-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                数据分析界面展示
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+        <!-- 账号全量发布记录 -->
+        <section id="feature-records" class="py-24 border-b border-gray-50 scroll-mt-[140px]">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-yellow-50 text-yellow-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">账号全量发布记录</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">全景式记录运营足迹，复盘每一次发布的节奏与效果。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>全量发布记录：</strong>支持查看账号所有历史发布内容，覆盖账号全量核心运营数据。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>发布情况汇总：</strong>直观呈现每日发布密度、内容类型分布和活跃发布账号，掌握团队工作饱和度。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>发布日历展示：</strong>基于可视化的发布日历，一览整月发布内容情况，便于规划后续排期。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-white rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                发布记录界面展示
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 实时热点追踪 -->
+        <section id="feature-trends" class="py-24 border-b border-gray-50 scroll-mt-[140px] bg-gray-50/50">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row-reverse items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-fire"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">实时热点追踪</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">紧跟流量风向标，让创作灵感源源不断。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>多平台信息整合：</strong>实时聚合抖音、微博、知乎等各大平台热点新闻，一站式全面了解全网热点。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>灵感源泉：</strong>为内容创作提供强有力的选题参考，帮助你快速产出爆款内容。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-gray-50 rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                热点追踪界面展示
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 视频下载 -->
+        <section id="feature-download" class="py-24 border-b border-gray-50 scroll-mt-[140px]">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-download"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">多平台视频无水印下载</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">轻松获取高清素材，激发二次创作潜力。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>全能解析：</strong>自动识别链接，支持抖音、快手、小红书、B站等主流平台的视频解析。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>高清无水印：</strong>快速下载无水印高清原片，完美满足素材收集和剪辑需求。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-white rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-bl from-indigo-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                视频下载界面展示
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 网盘发布 -->
+        <section id="feature-cloud" class="py-24 scroll-mt-[140px] bg-gray-50/50">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row-reverse items-center gap-16">
+                    <div class="flex-1 space-y-6">
+                        <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-cloud-upload"></i>
+                        </div>
+                        <h2 class="text-4xl font-bold text-gray-900">网盘素材快速发布</h2>
+                        <p class="text-lg text-gray-500 leading-relaxed">打通网盘与发布平台，实现云端素材直发。</p>
+                        <ul class="space-y-3 pt-2">
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>网盘直连：</strong>支持绑定主流网盘，直接访问网盘文件，内容无需手动下载到本地。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>一键云发布：</strong>省去下载再上传的步骤，一键将网盘素材发布到视频平台，大幅节省时间和带宽。</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-gray-600">
+                                <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                                <span><strong>便捷管理：</strong>智能文件筛选，快速定位目标文件；支持多账号网盘管理，跨团队协作更便捷。</span>
+                            </li>
+                        </ul>
+                        <div class="pt-2">
+                            <button class="px-5 py-2 rounded-lg bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-2 group border border-gray-200">
+                                <i class="fa-regular fa-eye"></i>
+                                <span>查看模拟数据</span>
+                                <i class="fa-solid fa-arrow-right text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="aspect-[4/3] bg-gray-50 rounded-2xl border border-gray-100 shadow-lg relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-tr from-teal-500/5 to-transparent"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-gray-300 font-bold text-2xl">
+                                网盘发布界面展示
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        </div>
+
+    <script>
+        // 平滑滚动
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                const offset = 150; // 调整偏移量以适应 sticky header
+                const bodyRect = document.body.getBoundingClientRect().top;
+                const elementRect = el.getBoundingClientRect().top;
+                const elementPosition = elementRect - bodyRect;
+                const offsetPosition = elementPosition - offset;
+
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: "smooth"
+                });
+            }
+        }
+
+        // 滚动监听高亮导航
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = ['feature-accounts', 'feature-publish', 'feature-interact', 'feature-analytics', 'feature-records', 'feature-trends', 'feature-download', 'feature-cloud'];
+            const navItems = {
+                'feature-accounts': document.getElementById('nav-accounts'),
+                'feature-publish': document.getElementById('nav-publish'),
+                'feature-interact': document.getElementById('nav-interact'),
+                'feature-analytics': document.getElementById('nav-analytics'),
+                'feature-records': document.getElementById('nav-records'),
+                'feature-trends': document.getElementById('nav-trends'),
+                'feature-download': document.getElementById('nav-download'),
+                'feature-cloud': document.getElementById('nav-cloud')
+            };
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '-20% 0px -60% 0px', // 调整触发区域
+                threshold: 0
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // 移除所有高亮
+                        Object.values(navItems).forEach(item => {
+                            if(item) {
+                                item.classList.remove('bg-white', 'shadow-md', 'border-orange-100', 'text-orange-600');
+                                item.classList.add('border-transparent');
+                                item.querySelector('span').classList.remove('text-gray-900');
+                            }
+                        });
+                        
+                        // 添加高亮
+                        const activeNav = navItems[entry.target.id];
+                        if (activeNav) {
+                            activeNav.classList.remove('border-transparent');
+                            activeNav.classList.add('bg-white', 'shadow-md', 'border-orange-100');
+                            activeNav.querySelector('span').classList.add('text-gray-900');
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) observer.observe(el);
+            });
+        });
+    </script>
+
+    <!-- 下载弹窗 Modal -->
+    <div id="downloadModal" class="modal-backdrop fixed inset-0 z-[60] flex items-center justify-center px-4">
+        <!-- 背景遮罩 -->
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" onclick="closeDownloadModal()"></div>
+        
+        <!-- 弹窗内容 -->
+        <div class="modal-content relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl p-8 md:p-10 z-10">
+            <!-- 关闭按钮 -->
+            <button onclick="closeDownloadModal()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- 标题 -->
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold text-gray-900 mb-3">选择适合您的版本</h2>
+                <p class="text-gray-500">支持 macOS、Windows 与 Linux 系统</p>
+            </div>
+
+            <!-- 卡片列表 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Windows -->
+                <div class="relative bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300 group flex flex-col items-center text-center h-full">
+                    <div class="w-16 h-16 rounded-2xl bg-gray-50 text-blue-600 flex items-center justify-center text-3xl mb-5 group-hover:scale-110 transition-transform">
+                        <i class="fa-brands fa-windows"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">Windows</h3>
+                    <p class="text-sm text-gray-500 mb-8">Windows 10/11</p>
+                    <button class="mt-auto w-full py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span>下载</span>
+                    </button>
+                </div>
+
+                <!-- macOS Apple Silicon -->
+                <div class="relative bg-orange-50/50 border-2 border-orange-400 rounded-2xl p-6 shadow-lg shadow-orange-100 hover:shadow-xl hover:shadow-orange-200 hover:-translate-y-1 transition-all duration-300 group flex flex-col items-center text-center h-full">
+                    <div class="absolute -top-3 right-6 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">推荐</div>
+                    <div class="w-16 h-16 rounded-2xl bg-white text-gray-900 flex items-center justify-center text-3xl mb-5 group-hover:scale-110 transition-transform shadow-sm">
+                        <i class="fa-brands fa-apple"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">macOS (Apple Silicon)</h3>
+                    <p class="text-sm text-gray-500 mb-8">Apple Silicon (M1/M2/M3)</p>
+                    <button class="mt-auto w-full py-2.5 bg-gradient-orange text-white rounded-xl font-bold shadow-md hover:shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span>立即下载</span>
+                    </button>
+                </div>
+
+                <!-- macOS Intel -->
+                <div class="relative bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-gray-300 transition-all duration-300 group flex flex-col items-center text-center h-full">
+                    <div class="w-16 h-16 rounded-2xl bg-gray-50 text-gray-900 flex items-center justify-center text-3xl mb-5 group-hover:scale-110 transition-transform">
+                        <i class="fa-brands fa-apple"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">macOS (Intel)</h3>
+                    <p class="text-sm text-gray-500 mb-8">Intel 处理器</p>
+                    <button class="mt-auto w-full py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:border-gray-900 hover:text-gray-900 hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span>下载</span>
+                    </button>
+                </div>
+
+                <!-- Linux -->
+                <div class="relative bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-gray-300 transition-all duration-300 group flex flex-col items-center text-center h-full">
+                    <div class="w-16 h-16 rounded-2xl bg-gray-50 text-gray-800 flex items-center justify-center text-3xl mb-5 group-hover:scale-110 transition-transform">
+                        <i class="fa-brands fa-linux"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">Linux</h3>
+                    <p class="text-sm text-gray-500 mb-8">AppImage / Debian</p>
+                    <button class="mt-auto w-full py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:border-gray-900 hover:text-gray-900 hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span>下载</span>
+                    </button>
+                </div>
+
+            </div>
+            
+            <div class="mt-8 text-center">
+                <p class="text-sm text-gray-400">
+                    不确定使用哪个版本？
+                    <a href="#" class="text-crebee-primary hover:underline underline-offset-4">查看安装指南</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模态框控制
+        function openDownloadModal() {
+            const modal = document.getElementById('downloadModal');
+            document.body.style.overflow = 'hidden'; // 禁止背景滚动
+            modal.classList.add('active');
+        }
+
+        function closeDownloadModal() {
+            const modal = document.getElementById('downloadModal');
+            document.body.style.overflow = ''; // 恢复滚动
+            modal.classList.remove('active');
+        }
+
+        // 键盘 ESC 关闭
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeDownloadModal();
+            }
+        });
+    </script>
+
+    </body>
+</html>
